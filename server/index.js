@@ -1,46 +1,74 @@
-const express = require('express');
-const cors = require('cors');
-const mysql = require('mysql2');
-const http_proxy = require('http-proxy');
-var cookie_parser = require('cookie-parser');
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import db from './db/database.js';
 
-const config = require('./config');
+// Load environment variables
+dotenv.config();
 
-console.log(config)
+// Import routes
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/user.js';
+import teamRoutes from './routes/team.js';
+import activitiesRoutes from './routes/activities.js';
 
 const app = express();
-// const proxy = http_roxy.createProxyServer({});
+const PORT = process.env.PORT || 3001;
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-//- Test log func
-app.use(function(req , res , next){
-	let date = new Date();
-	console.log(`${date.getHours()}:${date.getMinutes()}  ${date.getDate()}/${date.getMonth()}/${date.getFullYear()}\t\t${req.ip}\t${req.method}\t${req.url}`);
-	console.log(req.cookies);
+// Request logging middleware
+app.use((req, res, next) => {
+	const date = new Date();
+	console.log(
+		`${date.getHours()}:${date.getMinutes()} ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}\t\t${req.ip}\t${req.method}\t${req.url}`
+	);
 	next();
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+	res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cors());
-app.use(cookie_parser())
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/user', teamRoutes); // Team routes are under /api/user/me/team
+app.use('/api/activities', activitiesRoutes);
 
-const users = require('./modules/users');
-const vacancies = require('./modules/vacancies');
-const employees = require('./modules/employees');
+// Error handling middleware
+app.use((err, req, res, next) => {
+	console.error('Error:', err);
+	res.status(err.status || 500).json({
+		error: err.message || 'Internal server error',
+	});
+});
 
+// 404 handler
+app.use((req, res) => {
+	res.status(404).json({ error: 'Route not found' });
+});
 
-const app_API = express.Router();
-const api_v1 = express.Router();
+// Start server
+app.listen(PORT, () => {
+	console.log(`ESG Gamification API Server running on port ${PORT}`);
+	console.log(`Health check: http://localhost:${PORT}/health`);
+	console.log(`Auth signin: http://localhost:${PORT}/api/auth/signin`);
+});
 
-api_v1.use("/users", users.api_v1);
-api_v1.use("/stats", employees.api_v1);
-api_v1.use("/", )
+// Graceful shutdown
+process.on('SIGINT', () => {
+	console.log('\nShutting down server...');
+	db.close();
+	process.exit(0);
+});
 
-
-app_API.use("/v1" , api_v1);
-app.use("/api" , app_API);
-
-
-app.listen(config.servers.api.port , config.servers.api.ip);
+process.on('SIGTERM', () => {
+	console.log('\nShutting down server...');
+	db.close();
+	process.exit(0);
+});
