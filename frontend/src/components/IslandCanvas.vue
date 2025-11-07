@@ -8,32 +8,69 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 const props = defineProps({
 	points: {
 		type: Array,
-		default: () => [
-			{ x: 0.2, y: 0.6 },
-			{ x: 0.5, y: 0.3 },
-			{ x: 0.8, y: 0.6 },
-			{ x: 0.5, y: 0.9 }
-		]
+		required: true,
+		default: () => []
 	},
-	// 1. Цвет изменен на запрошенный
+	viewBox: {
+		type: Object,
+		default: () => ({ x: -100, y: -100, width: 200, height: 200 })
+	},
 	color: {
 		type: String,
-		default: '#B3CFE5' // Новый цвет острова
+		default: '#B3CFE5'
 	},
-	// 2. Добавляем пропсы для "толщины"
 	shadowColor: {
 		type: String,
-		default: '#8FA8C0' // Более темный оттенок для боковой грани
+		default: '#8FA8C0'
 	},
 	thickness: {
 		type: Number,
-		default: 10 // Толщина в пикселях
+		default: 10
+	},
+	// --- НОВЫЙ PROP ДЛЯ СКРУГЛЕНИЯ ---
+	cornerRadius: {
+		type: Number,
+		default: 0 // По умолчанию углы острые
 	}
 });
 
 const canvasRef = ref(null);
 
-const drawIsland = () => {
+// Функция отрисовки фигуры теперь учитывает радиус скругления
+const drawShape = (ctx, pointsToDraw, color, radius) => {
+	if (pointsToDraw.length < 3) return; // Скруглять можно только фигуры от 3 углов
+
+	ctx.fillStyle = color;
+	ctx.beginPath();
+
+	// Если радиус не задан, рисуем обычный полигон с острыми углами
+	if (!radius || radius <= 0) {
+		ctx.moveTo(pointsToDraw[0].x, pointsToDraw[0].y);
+		for (let i = 1; i < pointsToDraw.length; i++) {
+			ctx.lineTo(pointsToDraw[i].x, pointsToDraw[i].y);
+		}
+	} else {
+		// Логика для скругленных углов
+		// Начинаем с точки на последнем отрезке, чтобы правильно замкнуть контур
+		ctx.moveTo(
+			(pointsToDraw[pointsToDraw.length - 1].x + pointsToDraw[0].x) / 2,
+			(pointsToDraw[pointsToDraw.length - 1].y + pointsToDraw[0].y) / 2
+		);
+
+		// Проходим по всем вершинам, используя их как контрольные точки для arcTo
+		for (let i = 0; i < pointsToDraw.length; i++) {
+			const p1 = pointsToDraw[i];
+			const p2 = pointsToDraw[(i + 1) % pointsToDraw.length];
+			// arcTo(x1, y1, x2, y2, radius) рисует дугу к касательной, проходящей через (x1, y1) и (x2, y2)
+			ctx.arcTo(p1.x, p1.y, p2.x, p2.y, radius);
+		}
+	}
+
+	ctx.closePath();
+	ctx.fill();
+};
+
+const renderCanvas = () => {
 	const canvas = canvasRef.value;
 	if (!canvas) return;
 	const ctx = canvas.getContext('2d');
@@ -46,62 +83,32 @@ const drawIsland = () => {
 
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-	if (props.points.length < 2) return;
+	const mapPointToCanvas = (point) => {
+		const canvasX = ((point.x - props.viewBox.x) / props.viewBox.width) * rect.width;
+		const canvasY = ((point.y - props.viewBox.y) / props.viewBox.height) * rect.height;
+		return { x: canvasX, y: canvasY };
+	};
 
-	const scaledPoints = props.points.map(p => ({
-		x: p.x * rect.width,
-		y: p.y * rect.height
-	}));
-	
-	// --- 3. Рисуем "толщину" (нижний слой) ---
-	const shadowPoints = scaledPoints.map(p => ({
-		x: p.x,
-		y: p.y + props.thickness // Смещаем каждую точку вниз
-	}));
-	
-	ctx.fillStyle = props.shadowColor;
-	ctx.beginPath();
-	ctx.moveTo(
-		(shadowPoints[0].x + shadowPoints[shadowPoints.length - 1].x) / 2,
-		(shadowPoints[0].y + shadowPoints[shadowPoints.length - 1].y) / 2
-	);
-	
-	for (let i = 0; i < shadowPoints.length; i++) {
-		const p1 = shadowPoints[i];
-		const p2 = shadowPoints[(i + 1) % shadowPoints.length];
-		ctx.quadraticCurveTo(p1.x, p1.y, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
-	}
-	ctx.closePath();
-	ctx.fill();
+	const scaledPoints = props.points.map(mapPointToCanvas);
 
-	// --- 4. Рисуем основную фигуру (верхний слой) ---
-	ctx.fillStyle = props.color;
-	ctx.beginPath();
-	ctx.moveTo(
-		(scaledPoints[0].x + scaledPoints[scaledPoints.length - 1].x) / 2,
-		(scaledPoints[0].y + scaledPoints[scaledPoints.length - 1].y) / 2
-	);
-	
-	for (let i = 0; i < scaledPoints.length; i++) {
-		const p1 = scaledPoints[i];
-		const p2 = scaledPoints[(i + 1) % scaledPoints.length];
-		ctx.quadraticCurveTo(p1.x, p1.y, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
-	}
+	// Передаем cornerRadius в обе функции отрисовки
+	const shadowPoints = scaledPoints.map(p => ({ x: p.x, y: p.y + props.thickness }));
+	drawShape(ctx, shadowPoints, props.shadowColor, props.cornerRadius);
 
-	ctx.closePath();
-	ctx.fill();
+	drawShape(ctx, scaledPoints, props.color, props.cornerRadius);
 };
 
 onMounted(() => {
-	drawIsland();
-	window.addEventListener('resize', drawIsland);
+	renderCanvas();
+	window.addEventListener('resize', renderCanvas);
 });
 
 onUnmounted(() => {
-	window.removeEventListener('resize', drawIsland);
+	window.removeEventListener('resize', renderCanvas);
 });
 
-watch(props, drawIsland, { deep: true });
+watch(props, renderCanvas, { deep: true });
+
 </script>
 
 <style scoped>
