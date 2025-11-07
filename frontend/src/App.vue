@@ -8,13 +8,8 @@ import { onMounted } from "vue";
 import { supabase } from "./lib/supabaseClient";
 
 async function testConnection() {
-  const { data, error } = await supabase.from("employees").select("*").limit(1);
-
-  if (error) {
-    console.error("❌ Supabase connection failed:", error.message);
-  } else {
-    console.log("✅ Supabase connection works! Sample data:", data);
-  }
+  const { data, error } = await supabase.from('employees').select('*')
+  console.log(data)
 }
 
 // ✅ run when the app mounts
