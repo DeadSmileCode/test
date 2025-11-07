@@ -5,15 +5,15 @@
 
 <script setup>
 import { onMounted } from "vue";
-import { supabase } from "./lib/supabaseClient";
+// import { supabase } from "./lib/supabaseClient";
 
-async function testConnection() {
-  const { data, error } = await supabase.from('employees').select('*')
-  console.log(data)
-}
+// async function testConnection() {
+//   const { data, error } = await supabase.from('employees').select('*')
+//   console.log(data)
+// }
 
-// ✅ run when the app mounts
-onMounted(testConnection);
+// // ✅ run when the app mounts
+// onMounted(testConnection);
 </script>
 
 <style>
