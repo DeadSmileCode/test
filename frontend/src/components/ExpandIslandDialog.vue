@@ -37,12 +37,14 @@
 							type="number"
 							:placeholder="input.placeholder"
 							class="form-input"
+							 v-model="activityInputValue"
 						/>
 						<input
 							v-if="input.type === 'file'"
 							:id="input.name"
 							type="file"
 							class="form-input"
+
 						/>
 					</div>
 				</div>
@@ -53,14 +55,24 @@
 			</div>
 			
 			<footer class="dialog-footer">
-				<button class="submit-btn" :disabled="!selectedActivity">Add Contribution</button>
+				<button class="submit-btn" :disabled="!selectedActivity" @click="submitContribution">Add Contribution</button>
 			</footer>
 		</div>
 	</div>
 </template>
 
+
+
+
+
+
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue'; // Добавьте onMounted
+// import { ref, computed, onMounted } from 'vue';
+import { useUser } from '@/composables/useUser';
+import { useTeams } from '@/composables/useTeams';
+
+// const activityInputValue = ref(null);
 
 defineProps({ isOpen: Boolean });
 const emit = defineEmits(['close']);
@@ -69,61 +81,130 @@ const searchTerm = ref('');
 const selectedActivity = ref(null);
 const isDropdownVisible = ref(false);
 
-// --- PROTOTYPING DATA (TRANSLATED) ---
-const ACTIVITIES = [
-	{ 
-		id: 1, 
-		name: 'Plant a tree', 
-		description: 'Specify the number of trees you have planted.', 
-		inputs: [
-			{ type: 'number', name: 'tree_count', label: 'Number of trees', placeholder: 'e.g., 5' }
-		]
-	},
-	{ 
-		id: 2, 
-		name: 'Recycle Paper', 
-		description: 'Enter the weight of the recycled paper in kilograms.', 
-		inputs: [
-			{ type: 'number', name: 'paper_weight', label: 'Weight (kg)', placeholder: 'e.g., 12.5' }
-		]
-	},
-	{ 
-		id: 3, 
-		name: 'Dispose of E-waste', 
-		description: 'Attach a photo confirmation of dropping off electronics at a collection point.', 
-		inputs: [
-			{ type: 'file', name: 'ewaste_proof', label: 'Proof of disposal' }
-		]
-	},
-	{ 
-		id: 4, 
-		name: 'Community Cleanup Volunteering', 
-		description: 'Specify the number of hours and attach a photo from the event.', 
-		inputs: [
-			{ type: 'number', name: 'volunteer_hours', label: 'Number of hours', placeholder: 'e.g., 3' },
-			{ type: 'file', name: 'volunteer_photo', label: 'Photo report' }
-		]
-	}
-];
-// ------------------------------------
+const { fetchUser } = useUser(); 
+const { fetchTeams } = useTeams();
 
-const filteredActivities = computed(() => {
-	if (!searchTerm.value) return ACTIVITIES;
-	return ACTIVITIES.filter(a => a.name.toLowerCase().includes(searchTerm.value.toLowerCase()));
+// --- НОВОЕ: Ref для хранения активностей с сервера ---
+const allActivities = ref([]);
+
+// --- НОВОЕ: Функция для загрузки данных ---
+async function fetchActivities() {
+	try {
+		const token = localStorage.getItem('jwt_token'); // Нужен токен!
+		if (!token) {
+			console.error("No token available for fetching activities.");
+			return;
+		}
+
+		const response = await fetch('/api/activities', {
+			headers: { 'Authorization': `Bearer ${token}` }
+		});
+
+		if (!response.ok) throw new Error('Failed to fetch activities');
+
+		const data = await response.json();
+		
+		// --- Адаптируем данные с сервера под формат, который ожидает компонент ---
+		allActivities.value = data.map(activity => ({
+			id: activity.activity_id,
+			name: activity.activity_name,
+			description: activity.description,
+			// Пока что inputs оставим заглушкой, так как сервер их не предоставляет
+			inputs: [ 
+				{ type: 'number', name: `value_${activity.activity_id}`, label: 'Value', placeholder: 'e.g., 5' }
+			]
+		}));
+		console.log('Loaded activities:', allActivities.value);
+		
+	} catch (error) {
+		console.error(error);
+	}
+}
+
+// --- НОВОЕ: Загружаем данные при монтировании компонента ---
+onMounted(() => {
+		fetchActivities();
 });
 
+// --- УДАЛИТЕ СТАТИЧЕСКИЙ МАССИВ ACTIVITIES ---
+// const ACTIVITIES = [ ... ]; // <-- Удалить эту константу
+
+// --- Измените computed-свойство, чтобы оно использовало allActivities ---
+const filteredActivities = computed(() => {
+		if (!searchTerm.value) return allActivities.value;
+		return allActivities.value.filter(a => a.name.toLowerCase().includes(searchTerm.value.toLowerCase()));
+});
+
+
+// Остальная часть скрипта (selectActivity, closeDialog) остается без изменений
 const selectActivity = (activity) => {
-	selectedActivity.value = activity;
-	searchTerm.value = activity.name;
-	isDropdownVisible.value = false;
+		selectedActivity.value = activity;
+		searchTerm.value = activity.name;
+		isDropdownVisible.value = false;
 };
 
 const closeDialog = () => {
-	selectedActivity.value = null;
-	searchTerm.value = '';
-	emit('close');
+		selectedActivity.value = null;
+		searchTerm.value = '';
+		emit('close');
 };
+
+
+
+const activityInputValue = ref(null); // Ref для хранения значения из инпута
+
+async function submitContribution() {
+	if (!selectedActivity.value) {
+		alert('Please select an activity.');
+		return;
+	}
+
+	const token = localStorage.getItem('jwt_token');
+	if (!token) {
+		alert('You are not logged in!');
+		return;
+	}
+
+	try {
+		const response = await fetch('/api/activities/log', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${token}`
+			},
+			body: JSON.stringify({
+				activity_id: selectedActivity.value.id,
+				// В MVP просто передадим какое-то значение для proof_link
+				proof_link: `Value entered: ${activityInputValue.value || 'N/A'}` 
+			})
+		});
+
+		if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(errorData.error || 'Failed to log activity');
+		}
+
+		const result = await response.json();
+
+		await fetchUser();
+		await fetchTeams();
+		console.log('Activity logged successfully:', result);
+		
+		// Тут можно будет вызвать событие для обновления острова, но пока просто закроем диалог
+		closeDialog();
+
+	} catch (error) {
+		console.error('Error submitting contribution:', error);
+		alert(`Error: ${error.message}`);
+	}
+}
 </script>
+
+
+
+
+
+
 
 <style scoped>
 /* Стили не менялись, поэтому здесь они опущены для краткости */

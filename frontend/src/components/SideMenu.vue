@@ -7,9 +7,9 @@
 			<ul>
 				<!-- Текст переведен на английский -->
 				<li><router-link to="/">Home</router-link></li>
-				<li><router-link to="/team">Team</router-link></li>
-				<li><router-link to="/stats">Statistic</router-link></li>
-				<li><router-link to="/soon">Soon</router-link></li>
+				<li><router-link to="/team">Teams</router-link></li>
+				<li><router-link to="/stats">Statistics</router-link></li>
+				<!-- <li><router-link to="/soon">Soon</router-link></li> -->
 			</ul>
 		</nav>
 	</div>

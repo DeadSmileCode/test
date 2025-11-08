@@ -9,7 +9,7 @@
       <svg viewBox="0 0 100 80" width="24" height="24"><rect width="100" height="15" rx="8"></rect><rect y="30" width="100" height="15" rx="8"></rect><rect y="60" width="100" height="15" rx="8"></rect></svg>
     </button>
     <div class="account-control" @click="toggleAccountDialog">
-      <div class="account-circle"><img src="https://i.pravatar.cc/100" alt="Account"></div>
+      <div class="account-circle"><img src="@/assets/icon.png" alt="Account"></div>
     </div>
 
     <!-- Основной контейнер для контента -->

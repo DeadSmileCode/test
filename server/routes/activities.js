@@ -33,38 +33,51 @@ router.post('/log', (req, res) => {
       return res.status(400).json({ error: 'activity_id is required' });
     }
 
-    // Verify activity exists
     const activity = db.prepare('SELECT * FROM activities WHERE activity_id = ?').get(activity_id);
     if (!activity) {
       return res.status(404).json({ error: 'Activity not found' });
     }
 
-    // Insert activity log
-    const insert = db.prepare(`
-      INSERT INTO employee_activities 
-      (employee_id, activity_id, proof_link, status, points_awarded, co2_saved_kg)
-      VALUES (?, ?, ?, 'pending', ?, ?)
-    `);
+    // Создаем транзакцию, которая выполнит обе операции
+    const logAndAward = db.transaction((data) => {
+      // 1. Запись в лог
+      const insert = db.prepare(`
+        INSERT INTO employee_activities (employee_id, activity_id, proof_link, status, points_awarded, co2_saved_kg)
+        VALUES (?, ?, ?, 'approved', ?, ?)
+      `);
+      const result = insert.run(data.employeeId, data.activityId, data.proof, data.points, data.co2);
 
-    const result = insert.run(
-      req.user.employee_id,
-      activity_id,
-      proof_link || null,
-      activity.points,
-      activity.estimated_co2_saving_kg || 0
-    );
+      // 2. Обновление счета
+      const updatePoints = db.prepare(`
+        UPDATE employees SET points_total = points_total + ? WHERE employee_id = ?
+      `);
+      updatePoints.run(data.points, data.employeeId);
 
-    // Get the created activity log
+      // Возвращаем ID созданной записи
+      return result.lastInsertRowid;
+    });
+
+    // Запускаем транзакцию
+    const newActivityLogId = logAndAward({
+      employeeId: req.user.employee_id,
+      activityId: activity_id,
+      proof: proof_link || null,
+      points: activity.points,
+      co2: activity.estimated_co2_saving_kg || 0
+    });
+
+    // Получаем созданный лог для ответа клиенту
     const activityLog = db
       .prepare('SELECT * FROM employee_activities WHERE employee_activity_id = ?')
-      .get(result.lastInsertRowid);
+      .get(newActivityLogId);
 
     res.status(201).json({
-      message: 'Activity logged successfully',
+      message: 'Activity logged and points awarded successfully!',
       activity_log: activityLog,
     });
+
   } catch (error) {
-    console.error('Error logging activity:', error);
+    console.error('Error in activity log transaction:', error);
     res.status(500).json({ error: 'Failed to log activity' });
   }
 });

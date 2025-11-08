@@ -6,6 +6,37 @@ import db from '../db/database.js';
 
 const router = express.Router();
 
+
+
+
+router.get('/dummy-login', (req, res) => {
+  try {
+    const testEmail = 'test.user@example.com';
+    let employee = db.prepare('SELECT * FROM employees WHERE email = ?').get(testEmail);
+
+    // Если тестового пользователя нет, создаем его
+    if (!employee) {
+      const result = db.prepare('INSERT INTO employees (first_name, last_name, email) VALUES (?, ?, ?)')
+                       .run('Test', 'User', testEmail);
+      employee = { employee_id: result.lastInsertRowid, email: testEmail };
+    }
+
+    // Генерируем токен для этого пользователя
+    const token = generateToken(employee.employee_id, employee.email);
+
+    res.json({
+      message: "Dummy token generated for testing",
+      token,
+      user: employee
+    });
+
+  } catch (error) {
+    console.error('Error in dummy-login:', error);
+    res.status(500).json({ error: 'Failed to generate dummy token' });
+  }
+});
+
+
 /**
  * GET /api/auth/signin
  * Initiates Microsoft OAuth login

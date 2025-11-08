@@ -7,12 +7,12 @@
       <svg viewBox="0 0 100 80" width="24" height="24"><rect width="100" height="15" rx="8"></rect><rect y="30" width="100" height="15" rx="8"></rect><rect y="60" width="100" height="15" rx="8"></rect></svg>
     </button>
     <div class="account-control" @click="toggleAccountDialog">
-      <div class="account-circle"><img src="https://i.pravatar.cc/100" alt="Account"></div>
+      <div class="account-circle"><img src="@/assets/icon.png" alt="Account"></div>
     </div>
 
     <!-- Контент страницы -->
     <header class="stats-header">
-      <h1>Island History</h1>
+      <h1>Islands History</h1>
       <div class="time-selector">
         <button class="stats-button" @click="setView('daily')" :class="{ active: currentView === 'daily' }">Daily</button>
         <button class="stats-button" @click="setView('monthly')" :class="{ active: currentView === 'monthly' }">Monthly</button>
@@ -46,15 +46,15 @@ onUnmounted(() => { window.removeEventListener('resize', () => { screenWidth.val
 const currentView = ref('daily');
 
 const dailyData = [
-  { label: 'Day 1', value: 15566 }, { label: 'Day 2', value: 9117 },
-  { label: 'Day 3', value: 19375 }, { label: 'Day 4', value: 17931 },
-  { label: 'Day 5', value: 7561 }, { label: 'Day 6', value: 5488 },
-  { label: 'Day 7', value: 11275 }, { label: 'Day 8', value: 18105 },
-  { label: 'Day 9', value: 9658 }, { label: 'Day 10', value: 9811 },
-  { label: 'Day 11', value: 8933 }, { label: 'Day 12', value: 18578 }
+  { label: '28.10', value: 15566 }, { label: '03.11', value: 9117 },
+  { label: '29.10', value: 19375 }, { label: '04.11', value: 17931 },
+  { label: '30.10', value: 7561 }, { label: '05.11', value: 5488 },
+  { label: '31.10', value: 11275 }, { label: '06.11', value: 18105 },
+  { label: '01.11', value: 9658 }, { label: '07.11', value: 9811 },
+  { label: '02.11', value: 8933 }, { label: '08.11', value: 18578 }
 ];
-const monthlyData = [ { label: 'Jan', value: 18500 }, { label: 'Feb', value: 22300 }, { label: 'Mar', value: 25000 }, { label: 'Apr', value: 23100 }, { label: 'May', value: 28900 }, { label: 'Jun', value: 31000 }, { label: 'Jul', value: 29500 }, { label: 'Aug', value: 33000 }, ];
-const yearlyData = [ { label: '2021', value: 150000 }, { label: '2022', value: 210000 }, { label: '2023', value: 280000 }, ];
+const monthlyData = [ { label: 'Mar', value: 18500 }, { label: 'Apr', value: 22300 }, { label: 'May', value: 25000 }, { label: 'Jun', value: 23100 }, { label: 'Jul', value: 28900 }, { label: 'Aug', value: 31000 }, { label: 'Sep', value: 29500 }, { label: 'Nov', value: 33000 }, ];
+const yearlyData = [ { label: '2022', value: 150000 }, { label: '2023', value: 210000 }, { label: '2024', value: 280000 }, ];
 
 const chartData = computed(() => {
   switch (currentView.value) { case 'monthly': return monthlyData; case 'yearly': return yearlyData; default: return dailyData; }

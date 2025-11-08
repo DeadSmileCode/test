@@ -10,6 +10,7 @@ dotenv.config();
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
 import teamRoutes from './routes/team.js';
+import teamsRoutes from './routes/teams.js';
 import activitiesRoutes from './routes/activities.js';
 
 const app = express();
@@ -38,6 +39,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/user', teamRoutes); // Team routes are under /api/user/me/team
+app.use('/api/teams', teamsRoutes);
 app.use('/api/activities', activitiesRoutes);
 
 // Error handling middleware
